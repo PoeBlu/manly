@@ -29,6 +29,28 @@ def parse_flags(raw_flags):
     return flags
 
 
+def section_is_for_arg(section, section_top, arg):
+    first_line = section_top[0].split(',')
+    try:
+        header = section_top[1].strip().startswith(arg)
+    except IndexError:
+        header = False
+
+    section = re.sub(
+            r'(^|\s){}'.format(arg),
+            _ANSI_BOLD.format(arg),
+            section
+    ).rstrip()
+
+    if header:
+        return section
+
+    for seg in first_line:
+        if seg.strip().startswith(arg):
+            return section
+    return False
+
+
 def parse_manpage(page, args):
     '''Scan the manpage for blocks of text, and check if the found blocks
     have sections that match the general manpage-flag descriptor style.
@@ -51,19 +73,12 @@ def parse_manpage(page, args):
 
         section = ''.join(current_section)
         section_top = section.strip().split('\n')[:2]
-        first_line = section_top[0].split(',')
 
         for arg in args:
-            try:
-                if any(seg.strip().startswith(arg) for seg in first_line) \
-                  or section_top[1].strip().startswith(arg):
-                    section = re.sub(r'(^|\s){}'.format(arg),
-                                     _ANSI_BOLD.format(arg),
-                                     section)
-                    output.append(section.rstrip())
-                    break
-            except IndexError:
-                pass
+            formatted_section = section_is_for_arg(section, section_top, arg)
+            if formatted_section:
+                output.append(formatted_section)
+                continue
         current_section = []
     return output
 
